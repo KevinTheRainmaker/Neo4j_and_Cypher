@@ -4,4 +4,4 @@
 ## 1. Cypher Fundamental
 
 ### <a href='https://github.com/KevinTheRainmaker/Neo4j_and_Cypher/tree/main/Cypher-Fundamental/Reading-data-from-Neo4j'>1) Reading data from Neo4j</a>
-### <a href=''>2) Writing data to Neo4j</a>
+### <a href='https://github.com/KevinTheRainmaker/Neo4j_and_Cypher'>2) Writing data to Neo4j</a>
