@@ -28,3 +28,9 @@ RETURN m.title
 MATCH (m:Movie)<-[:ACTED_IN]-(p:Person {name: 'Tom Hanks'})
 RETURN m.title
 ```
+
+### Check your understanding
+
+![image](https://user-images.githubusercontent.com/76294398/171776990-a7761d1f-c6e0-4eac-b13c-c1ff66e6c3e3.png)
+
+![image](https://user-images.githubusercontent.com/76294398/171777066-0b550641-5199-4673-83b2-6dbc964c0ab4.png)
