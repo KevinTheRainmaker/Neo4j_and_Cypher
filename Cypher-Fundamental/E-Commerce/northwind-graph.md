@@ -114,3 +114,125 @@ CREATE (s)-[:SUPPLIES]->(p)
 ![image](https://user-images.githubusercontent.com/76294398/173312078-b53dbeb9-2d90-4bc0-8a9e-b77243219963.png)
 
 <br>
+
+### Query using patterns
+
+그래프 데이터를 질의할 때는 패턴을 기준으로 질의를 수행한다. 몇 가지 쿼리문을 통해 이를 수행해보자.
+
+```sql
+MATCH
+(s:Supplier)-[:SUPPLIES]->(p:Product)-[:PART_OF]->(c:Category)
+RETURN
+s.companyName as Company,
+p.productName as Product,
+collect(distinct c.categoryName) as Categories
+```
+
+![image](https://user-images.githubusercontent.com/76294398/173500942-d63ce4f0-46de-40ee-bab1-7e5ad54a7894.png)
+
+위 쿼리문을 사용하면 Supplier부터 Product를 거쳐 Category까지 가는 패턴에서 필요한 내용들을 추출할 수 있다. 관계를 명시할 수도 있고, 예제 데이터처럼 A 개체에서 B 개체로 이어지는 관계가 한 종류만 있는 경우 생략도 가능하다.
+또한 collect를 사용하면 여러 개의 데이터를 하나의 리스트로 묶을 수도 있다.
+
+<br>
+
+이번엔 다음 쿼리를 이용해서 Product의 Category가 Produce인 상품을 공급하는 Supplier의 companyName을 추출해보자.
+
+```
+MATCH
+(s:Supplier)-->(p:Product)-->(c:Category)
+WHERE c.categoryName = 'Produce'
+RETURN
+DISTINCT s.companyName as ProduceSuppliers
+```
+
+이때 해당 패턴을 만족하는 Path가 여러 개일 경우, 즉 Produce Category를 가진 Product를 공급하는 Supplier가 동일 엔드포인트로 가는 방법이 여러 개일 경우 중복 추출이 있을 수 있다. 따라서 DISTINCT를 이용해 이를 방지한다.
+
+![image](https://user-images.githubusercontent.com/76294398/173502794-67e77d69-4859-4ba1-9ac4-781097ed3813.png)
+
+<br>
+
+### Customer Order Graph
+
+Northwind의 ERD 모델을 보면 Order과 Order Detail이 존재한다. Order는 Customer의 PK인 Customer ID를 FK로 이용하며, Order의 PK인 Oreder ID는 Order Detail에서 FK로 사용되어 Product와의 Join 테이블 역할을 수행한다. 즉 Order Detail은 Order의 일부로, Order과 Product를 연결하는 역할을 한다.
+
+<br>
+
+| Orders         | Order Details |
+| -------------- | ------------- |
+| **OrderID**    | _OrderID_     |
+| _CustomerID_   | _ProductID_   |
+| _EmployeeID_   | UnitPrice     |
+| OrderDate      | Quantity      |
+| RequiredDate   | Discount      |
+| ShippedDate    |               |
+| ShipVia        |               |
+| Freight        |               |
+| ShipName       |               |
+| ShipAddress    |               |
+| ShipCity       |               |
+| ShipRegion     |               |
+| ShipPostalCode |               |
+| ShipCountry    |               |
+
+<br>
+
+먼저 Orders를 노드로 로드한 후 Oreder Detail를 Product와 Order를 잇는 relationships로써 로드하도록 하겠다. 즉, 위 표의 OrderDetails의 프로퍼티는 관계 ORDERS의 프로퍼티가 된다.
+
+```sql
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/orders.csv" AS row
+CREATE (n:Order)
+```
+
+```sql
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/customers.csv" AS row
+CREATE (n:Customer)
+```
+
+```sql
+MATCH (c:Customer), (o:Order)
+WHERE c.customerID = o.customerID
+CREATE (c)-[:PURCHASED]->(o)
+```
+
+![image](https://user-images.githubusercontent.com/76294398/173510092-ce933cfe-b32d-4fee-ae43-1beddb78e4db.png)
+
+<br>
+
+```sql
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/order-details.csv" AS row
+MATCH (p:Product), (o:Order)
+WHERE p.productID = row.productID AND o.orderID = row.orderID
+CREATE (o)-[details:ORDERS]->(p)
+SET details = row,
+details.quantity = toInteger(row.quantity)
+```
+
+```sql
+LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/order-details.csv" AS row
+MATCH (p:Product), (o:Order)
+WHERE p.productID = row.productID AND o.orderID = row.orderID
+CREATE (o)-[details:ORDERS]->(p)
+SET details = row,
+details.quantity = toInteger(row.quantity)
+```
+
+![image](https://user-images.githubusercontent.com/76294398/173507430-e2d784ff-29c2-4c96-bff6-6cd090a0f0c7.png)
+
+<br>
+
+이제 이렇게 로드한 데이터에서 패턴을 이용한 질의를 수행해보도록 하자.
+
+다음 쿼리문은 Produce 카테고리를 가진 프로덕트를 주문한 사람의 이름과 해당 프로덕트가 총 구매된 개수를 추출한다.
+
+```sql
+MATCH
+(cust:Customer)-[:PURCHASED]->(:Order)-[o:ORDERS]->(p:Product),
+(p)-[:PART_OF]->(c:Category {categoryName:"Produce"})
+RETURN DISTINCT
+cust.contactName as CustomerName,
+SUM(o.quantity) AS TotalProductsPurchased
+```
+
+![image](https://user-images.githubusercontent.com/76294398/173510598-4c4650fa-2b8d-4310-9f52-915a7848b7b1.png)
+
+<br>
