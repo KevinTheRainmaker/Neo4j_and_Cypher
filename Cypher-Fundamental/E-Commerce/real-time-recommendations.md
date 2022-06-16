@@ -74,3 +74,119 @@ LIMIT 5
 ![image](https://user-images.githubusercontent.com/76294398/174006342-79f8b153-5799-40d6-b507-d42fa767682a.png)
 
 <br>
+
+### Collaborative Filtering
+
+Collaborative Filtering은 다른 고객의 피드백을 바탕으로 Content Based Recommendation을 하는 방식이라 할 수 있다. 이러한 피드백을 얻기 위해 여기서는 order_count를 이용해 rating을 생성한 후 활용하도록 하겠다.
+
+이를 위해 k-NN 알고리즘을 사용할 수 있다. 각 아이템은 유사도를 기반으로 grouping 된다.
+
+다음 쿼리문을 이용해 rating relationship을 생성하도록 하자.
+
+```sql
+MATCH
+(c:Customer)-[:PURCHASED]->(o:Order)-[:ORDERS]->(p:Product)
+WITH c, count(p) as total
+    MATCH (c)-[:PURCHASED]->(o:Order)-[:ORDERS]->(p:Product)
+    WITH c, total, p, count(o)*1.0 as orders
+    MERGE (c)-[rated:RATED]->(p)
+    ON CREATE SET rated.rating = orders/total
+    ON MATCH SET rated.rating = orders/total
+    WITH
+    c.companyName as company,
+    p.productName as product,
+    orders, total,
+    rated.rating as rating
+    ORDER BY rating DESC
+    RETURN company, product, orders, total, rating
+    LIMIT 10
+```
+
+<br>
+
+이로 인해 (Customer)-[:RATED]->(Product) 관계가 생성되었다.
+
+<br>
+
+점수는 0~1 사이 점수로, 현재 데이터에서는 0.5가 최대치인 것으로 나타났다.
+
+<br>
+
+![image](https://user-images.githubusercontent.com/76294398/174014767-a6ac39e2-40e3-440e-a567-5260dc563aa1.png)
+
+<br>
+
+이렇게 생성된 rating을 기반으로 두 고객의 선호도를 비교해보도록 하자.
+아래 쿼리문을 이용하면 고객 ID ANTON인 고객이 rating한 상품에 대해 다른 고객이 rating한 점수차를 확인할 수 있다.
+
+```sql
+MATCH
+(c1:Customer {customerID: 'ANTON'})-[r1:RATED]->(p:Product)
+<-[r2:RATED]-(c2:Customer)
+RETURN
+c1.customerID, c2.customerID,
+p.productName,
+r1.rating, r2.rating,
+CASE WHEN
+r1.rating < r2.rating
+THEN r2.rating-r1.rating
+ELSE r1.rating-r2.rating
+END AS difference
+ORDER BY difference ASC
+LIMIT 15
+```
+
+이제 위에서 얻은 점수 차이를 이용하면 고객간 코사인 유사도 점수를 relationship으로 생성할 수 있다.
+
+```sql
+MATCH
+(c1:Customer)-[r1:RATED]->(p:Product)
+<-[r2:RATED]-(c2:Customer)
+WITH
+    SUM(r1.rating*r2.rating) as dot_product,
+    SQRT(REDUCE(x=0.0, a IN COLLECT(r1.rating) | x + a^2)) as r1_length,
+    SQRT(REDUCE(y=0.0, b IN COLLECT(r2.rating) | y + b^2)) as r2_length,
+    c1, c2
+MERGE (c1)-[s:SIMILALITY]-(c2)
+SET s.similarity = dot_product / (r1_length * r2_length)
+```
+
+그럼 ANTON과 비슷한 고객을 상위 10명 추출해보자.
+
+```sql
+MATCH
+(me:Customer {customerID:'ANTON'})-[r:SIMILALITY]->(them:Customer)
+RETURN
+me.companyName AS customer_1,
+them.companyName AS customer_2,
+toInteger(r.similarity*100) AS sim_score
+ORDER BY r.similarity DESC
+```
+
+<br>
+
+![image](https://user-images.githubusercontent.com/76294398/174029273-8a4f19b3-e254-4414-829e-a5cb9562e38e.png)
+
+<br>
+
+이제 위 결과를 바탕으로 추천을 수행해보자.
+
+(잘 안돼서 보류 중,,)
+
+<!-- ```sql
+WITH 1 AS neighbours
+MATCH (p2:Product)<-[:RATED]-(me:Customer)-[:SIMILARITY]->(c:Customer)-[r:RATED]->(p1:Product)
+WHERE me.customerID = 'ANTON'
+AND
+NOT ((me)-[:RATED]->(p2))
+WITH p1, COLLECT(r.rating)[0..neighbours] AS ratings,
+COLLECT(c.companyName)[0..neighbours] AS customers
+WITH p1, customers,
+REDUCE(s=0,i in ratings|s+i)/SIZE(ratings) AS recommendation
+ORDER BY recommendation DESC
+RETURN
+p1.productName,
+customers,
+recommendation
+LIMIT 10
+``` -->
