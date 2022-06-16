@@ -31,12 +31,15 @@ Northwind는 Supplier로부터 공급되는 다양한 Category의 음식 Product
 CSV 데이터는 위와 같은 형태로 이루어져있으며 해당 데이터는 Neo4j 공식 홈페이지에 올라와있다.
 
 ```sql
-LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/products.csv" AS row
+LOAD CSV WITH HEADERS
+FROM "https://data.neo4j.com/northwind/products.csv" AS row
 CREATE (n:Product)
 SET n = row,
 n.unitPrice = toFloat(row.unitPrice),
-n.unitsInStock = toInteger(row.unitsInStock), n.unitsOnOrder = toInteger(row.unitsOnOrder),
-n.reorderLevel = toInteger(row.reorderLevel), n.discontinued = (row.discontinued <> "0")
+n.unitsInStock = toInteger(row.unitsInStock),
+n.unitsOnOrder = toInteger(row.unitsOnOrder),
+n.reorderLevel = toInteger(row.reorderLevel),
+n.discontinued = (row.discontinued <> "0")
 ```
 
 해당 작업을 수행하면 Product 개체 77개가 노드로서 생성된다.
@@ -52,15 +55,15 @@ n.reorderLevel = toInteger(row.reorderLevel), n.discontinued = (row.discontinued
 <br>
 
 ```sql
-LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/categories.csv" AS row
+LOAD CSV WITH HEADERS
+FROM "https://data.neo4j.com/northwind/categories.csv"
 CREATE (n:Category)
-SET n = row
 ```
 
 ```sql
-LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/suppliers.csv" AS row
+LOAD CSV WITH HEADERS
+FROM "https://data.neo4j.com/northwind/suppliers.csv"
 CREATE (n:Supplier)
-SET n = row
 ```
 
 ![image](https://user-images.githubusercontent.com/76294398/173309748-e4c2f581-18eb-4e99-897a-5db947a82ac4.png)
@@ -179,12 +182,17 @@ Northwind의 ERD 모델을 보면 Order과 Order Detail이 존재한다. Order�
 먼저 Orders를 노드로 로드한 후 Oreder Detail를 Product와 Order를 잇는 relationships로써 로드하도록 하겠다. 즉, 위 표의 OrderDetails의 프로퍼티는 관계 ORDERS의 프로퍼티가 된다.
 
 ```sql
-LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/orders.csv" AS row
+LOAD CSV WITH HEADERS
+FROM "https://data.neo4j.com/northwind/orders.csv" AS row
 CREATE (n:Order)
+SET n = row,
+n.shipVia = toInteger(row.shipVia),
+n.freight = toFloat(row.freight)
 ```
 
 ```sql
-LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/customers.csv" AS row
+LOAD CSV WITH HEADERS
+FROM "https://data.neo4j.com/northwind/customers.csv"
 CREATE (n:Customer)
 ```
 
@@ -199,18 +207,11 @@ CREATE (c)-[:PURCHASED]->(o)
 <br>
 
 ```sql
-LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/order-details.csv" AS row
+LOAD CSV WITH HEADERS
+FROM "https://data.neo4j.com/northwind/order-details.csv" AS row
 MATCH (p:Product), (o:Order)
-WHERE p.productID = row.productID AND o.orderID = row.orderID
-CREATE (o)-[details:ORDERS]->(p)
-SET details = row,
-details.quantity = toInteger(row.quantity)
-```
-
-```sql
-LOAD CSV WITH HEADERS FROM "https://data.neo4j.com/northwind/order-details.csv" AS row
-MATCH (p:Product), (o:Order)
-WHERE p.productID = row.productID AND o.orderID = row.orderID
+WHERE p.productID = row.productID
+AND o.orderID = row.orderID
 CREATE (o)-[details:ORDERS]->(p)
 SET details = row,
 details.quantity = toInteger(row.quantity)
