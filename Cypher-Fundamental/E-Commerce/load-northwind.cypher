@@ -1,43 +1,43 @@
 // Products
 LOAD CSV WITH HEADERS 
-FROM "https://data.neo4j.com/northwind/products.csv" AS row
-CREATE (n:Product)
-SET n = row,
-n.unitPrice = toFloat(row.unitPrice),
-n.unitsInStock = toInteger(row.unitsInStock), 
-n.unitsOnOrder = toInteger(row.unitsOnOrder),
-n.reorderLevel = toInteger(row.reorderLevel), 
-n.discontinued = (row.discontinued <> "0")
+FROM "https://data.neo4j.com/northwind/products.csv" AS pro
+CREATE (p:Product)
+SET p = pro,
+p.unitPrice = toFloat(pro.unitPrice),
+p.unitsInStock = toInteger(pro.unitsInStock), 
+p.unitsOnOrder = toInteger(pro.unitsOnOrder),
+p.reorderLevel = toInteger(pro.reorderLevel), 
+p.discontinued = (pro.discontinued <> "0");
 
 // Categories
-LOAD CSV WITH HEADERS 
-FROM "https://data.neo4j.com/northwind/categories.csv"
-CREATE (n:Category)
+LOAD CSV WITH HEADERS
+FROM 'https://data.neo4j.com/northwind/categories.csv' AS cat
+CREATE (c:Category);
 
 // Suppliers
 LOAD CSV WITH HEADERS 
-FROM "https://data.neo4j.com/northwind/suppliers.csv"
-CREATE (n:Supplier)
+FROM 'https://data.neo4j.com/northwind/suppliers.csv' AS sup
+CREATE (s:Supplier);
 
 // Orders
 LOAD CSV WITH HEADERS 
-FROM "https://data.neo4j.com/northwind/orders.csv" AS row
-CREATE (n:Order)
-SET n = row,
-n.shipVia = toInteger(row.shipVia),
-n.freight = toFloat(row.freight)
+FROM "https://data.neo4j.com/northwind/orders.csv" AS ord
+CREATE (o:Order)
+SET o = ord,
+o.shipVia = toInteger(ord.shipVia),
+o.freight = toFloat(ord.freight);
 
 // Customers
 LOAD CSV WITH HEADERS 
-FROM "https://data.neo4j.com/northwind/customers.csv"
-CREATE (n:Customer)
+FROM "https://data.neo4j.com/northwind/customers.csv" AS cus
+CREATE (cust:Customer);
 
 // Order Details - as Realtionship
 LOAD CSV WITH HEADERS 
-FROM "https://data.neo4j.com/northwind/order-details.csv" AS row
+FROM "https://data.neo4j.com/northwind/order-details.csv" AS det
 MATCH (p:Product), (o:Order)
-WHERE p.productID = row.productID 
-AND o.orderID = row.orderID
+WHERE p.productID = det.productID 
+AND o.orderID = det.orderID
 CREATE (o)-[details:ORDERS]->(p)
-SET details = row,
-details.quantity = toInteger(row.quantity)
+SET details = det,
+details.quantity = toInteger(det.quantity);
