@@ -171,22 +171,37 @@ ORDER BY r.similarity DESC
 
 이제 위 결과를 바탕으로 추천을 수행해보자.
 
-(잘 안돼서 보류 중,,)
-
-<!-- ```sql
-WITH 1 AS neighbours
-MATCH (p2:Product)<-[:RATED]-(me:Customer)-[:SIMILARITY]->(c:Customer)-[r:RATED]->(p1:Product)
+```sql
+WITH 1 as neighbours
+MATCH (me:Customer)-[:SIMILALITY]->(c:Customer)-[r:RATED]->(p:Product)
 WHERE me.customerID = 'ANTON'
-AND
-NOT ((me)-[:RATED]->(p2))
-WITH p1, COLLECT(r.rating)[0..neighbours] AS ratings,
-COLLECT(c.companyName)[0..neighbours] AS customers
-WITH p1, customers,
-REDUCE(s=0,i in ratings|s+i)/SIZE(ratings) AS recommendation
+AND NOT ( (me)-[:RATED]->(p) )
+WITH p,
+COLLECT(r.rating)[0..neighbours] as ratings,
+COLLECT(c.companyName)[0..neighbours] as customers
+WITH p, customers,
+REDUCE(s=0,i in ratings | s+i) / SIZE(ratings)  as recommendation
 ORDER BY recommendation DESC
+WITH p, customers, toFloat(recommendation) AS score
 RETURN
-p1.productName,
+p.productName as product,
 customers,
-recommendation
+round(1000 * score)/10 as score
 LIMIT 10
-``` -->
+```
+
+위 쿼리를 통해 ANTON과 유사한 사용자가 평가한(주문한) 상품 중 ANTON이 평가하지 않은 상품들을 검색하였다. 이렇게 추출된 사용자들의 rating을 평균 내어 recommendation이라는 변수로 작성 후 이를 높은 순으로 추출하였다.
+
+<br>
+
+![image](https://user-images.githubusercontent.com/76294398/174207942-c8889b41-2aa9-4910-9631-c182bde2db57.png)
+
+<br>
+
+여기서 최상단 neighbours 변수를 1이 아닌 수로 변경하면 더 깊은 탐색이 가능하다.
+
+<br>
+
+![image](https://user-images.githubusercontent.com/76294398/174208210-36a4cff6-9344-46f1-8f87-a3e542089e7e.png)
+
+<br>
